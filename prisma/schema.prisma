@@ -1,0 +1,277 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+// ==================== USER & AUTH ====================
+
+model User {
+  id              Int       @id @default(autoincrement()) @map("id_user")
+  username        String    @unique @db.VarChar(50)
+  password        String    @db.VarChar(255)
+  avatar          Avatar    @default(Ellipse_1)
+  bio             String?   @db.Text
+  level           Int       @default(1)
+  xp              Int       @default(0)
+  xpNext          Int       @default(100) @map("xp_next")
+  coin            Int       @default(0)
+  lastChallengeDate DateTime? @map("last_challenge_date") @db.Date
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  achievements    UserAchievement[]
+  answers         UserAnswer[]
+  chapterProgress UserChapterProgress[]
+  items           UserItem[]
+  challengeScores ChallengeScore[]
+  bossResults     BossResult[]
+
+  @@map("users")
+}
+
+enum Avatar {
+  Ellipse_1 @map("Ellipse_1.png")
+  Ellipse_2 @map("Ellipse_2.png")
+  Ellipse_3 @map("Ellipse_3.png")
+  Ellipse_4 @map("Ellipse_4.png")
+  Ellipse_5 @map("Ellipse_5.png")
+}
+
+model Admin {
+  id       Int    @id @default(autoincrement()) @map("id_admin")
+  username String @unique @db.VarChar(50)
+  password String @db.VarChar(255)
+
+  @@map("admin")
+}
+
+// ==================== ACHIEVEMENTS ====================
+
+model Achievement {
+  id     Int    @id @default(autoincrement()) @map("id_achievement")
+  nama   String @db.VarChar(100)
+  syarat String? @db.Text
+
+  users UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  userId        Int @map("id_user")
+  achievementId Int @map("id_achievement")
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@id([userId, achievementId])
+  @@map("user_achievements")
+}
+
+// ==================== QUESTS ====================
+
+model Quest {
+  id          Int           @id @default(autoincrement()) @map("id_quest")
+  judul       String        @db.VarChar(100)
+  deskripsi   String?       @db.Text
+  kategori    QuestKategori
+  xpReward    Int           @default(0) @map("xp_reward")
+  coinReward  Int           @default(0) @map("coin_reward")
+  gambarIcon  String?       @map("gambar_icon") @db.VarChar(255)
+  tersedia    Boolean       @default(true)
+  mulaiEvent  DateTime?     @map("mulai_event") @db.Date
+  akhirEvent  DateTime?     @map("akhir_event") @db.Date
+
+  chapters    QuestChapter[]
+  bossQuests  BossQuest[]
+
+  @@map("quests")
+}
+
+enum QuestKategori {
+  story
+  challenge
+  boss_battle
+}
+
+model QuestChapter {
+  id            Int    @id @default(autoincrement()) @map("id_chapter")
+  questId       Int    @map("id_quest")
+  nomorChapter  Int    @map("nomor_chapter")
+  judulChapter  String @db.VarChar(100) @map("judul_chapter")
+  deskripsi     String? @db.Text
+  coinReward    Int    @default(0) @map("coin_reward")
+  xpReward      Int    @default(0) @map("xp_reward")
+
+  quest         Quest           @relation(fields: [questId], references: [id], onDelete: Cascade)
+  questions     QuestQuestion[]
+  userProgress  UserChapterProgress[]
+  userAnswers   UserAnswer[]
+
+  @@map("quest_chapters")
+}
+
+model QuestQuestion {
+  id           Int        @id @default(autoincrement()) @map("id_question")
+  chapterId    Int        @map("id_chapter")
+  pertanyaan   String     @db.Text
+  pilihanA     String?    @map("pilihan_a") @db.VarChar(255)
+  pilihanB     String?    @map("pilihan_b") @db.VarChar(255)
+  pilihanC     String?    @map("pilihan_c") @db.VarChar(255)
+  pilihanD     String?    @map("pilihan_d") @db.VarChar(255)
+  jawabanBenar AnswerOption @map("jawaban_benar")
+  petunjuk     String?    @db.Text
+  minLevel     Int        @default(1) @map("min_level")
+
+  chapter      QuestChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  userAnswers  UserAnswer[]
+
+  @@map("quest_questions")
+}
+
+enum AnswerOption {
+  a
+  b
+  c
+  d
+}
+
+// ==================== USER PROGRESS ====================
+
+model UserAnswer {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("id_user")
+  chapterId   Int      @map("id_chapter")
+  questionId  Int      @map("id_question")
+  jawabanUser String   @map("jawaban_user") @db.VarChar(10)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter  QuestChapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  question QuestQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("user_answers")
+}
+
+model UserChapterProgress {
+  idProgress      Int      @map("id_progress")
+  userId          Int      @map("id_user")
+  chapterId       Int      @map("id_chapter")
+  nilai           Int      @default(0)
+  sudahSelesai    Boolean  @default(false) @map("sudah_selesai")
+  waktuSelesai    DateTime @default(now()) @map("waktu_selesai")
+  xpDidapat       Int      @default(0) @map("xp_didapat")
+  coinDidapat     Int      @default(0) @map("coin_didapat")
+  xpReplayReward  Int      @default(0) @map("xp_replay_reward")
+  coinReplayReward Int     @default(0) @map("coin_replay_reward")
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter QuestChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@id([idProgress, userId, chapterId])
+  @@map("user_chapter_progress")
+}
+
+// ==================== CHALLENGE ====================
+
+model ChallengeScore {
+  id     Int      @id @default(autoincrement())
+  userId Int      @map("id_user")
+  score  Int
+  waktu  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("challenge_scores")
+}
+
+// ==================== BOSS BATTLE ====================
+
+model BossQuest {
+  id              Int     @id @default(autoincrement()) @map("id_boss")
+  questId         Int?    @map("id_quest")
+  namaBoss        String? @map("nama_boss") @db.VarChar(100)
+  chapterStart    Int?    @map("chapter_start")
+  chapterEnd      Int?    @map("chapter_end")
+  deskripsiBoss   String? @map("deskripsi_boss") @db.Text
+  backgroundImage String? @map("background_image") @db.VarChar(255)
+  bossImage       String? @map("boss_image") @db.VarChar(255)
+  xpReward        Int     @default(0) @map("xp_reward")
+  coinReward      Int     @default(0) @map("coin_reward")
+
+  quest     Quest?         @relation(fields: [questId], references: [id])
+  questions BossQuestion[]
+  results   BossResult[]
+
+  @@map("boss_quests")
+}
+
+model BossQuestion {
+  id           Int     @id @default(autoincrement()) @map("id_question")
+  bossId       Int?    @map("id_boss")
+  pertanyaan   String? @db.Text
+  pilihanA     String? @map("pilihan_a") @db.Text
+  pilihanB     String? @map("pilihan_b") @db.Text
+  pilihanC     String? @map("pilihan_c") @db.Text
+  pilihanD     String? @map("pilihan_d") @db.Text
+  jawabanBenar String? @map("jawaban_benar") @db.Char(1)
+  petunjuk     String? @db.Text
+
+  boss BossQuest? @relation(fields: [bossId], references: [id])
+
+  @@map("boss_questions")
+}
+
+model BossResult {
+  id          Int      @id @default(autoincrement()) @map("id_result")
+  userId      Int?     @map("id_user")
+  bossId      Int?     @map("id_boss")
+  jumlahBenar Int?     @map("jumlah_benar")
+  totalSoal   Int?     @map("total_soal")
+  xpDidapat   Int?     @map("xp_didapat")
+  coinDidapat Int?     @map("coin_didapat")
+  tanggal     DateTime @default(now())
+
+  user User?      @relation(fields: [userId], references: [id])
+  boss BossQuest? @relation(fields: [bossId], references: [id])
+
+  @@map("boss_results")
+}
+
+// ==================== SHOP & INVENTORY ====================
+
+model ShopItem {
+  id          Int     @id @default(autoincrement()) @map("id_item")
+  namaItem    String  @map("nama_item") @db.VarChar(100)
+  tipeItem    String? @map("tipe_item") @db.VarChar(50)
+  deskripsi   String? @db.Text
+  hargaCoin   Int     @map("harga_coin")
+  fileIcon    String? @map("file_icon") @db.VarChar(100)
+  tersedia    Boolean @default(true)
+  levelMinimal Int    @default(1) @map("level_minimal")
+  sekaliPakai Boolean @default(true) @map("sekali_pakai")
+
+  userItems UserItem[]
+
+  @@map("shop_items")
+}
+
+model UserItem {
+  id     Int @id @default(autoincrement()) @map("id_user_item")
+  userId Int @map("id_user")
+  itemId Int @map("id_item")
+  jumlah Int @default(1)
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item ShopItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("user_items")
+}
