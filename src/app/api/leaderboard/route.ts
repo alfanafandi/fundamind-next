@@ -25,7 +25,7 @@ export async function GET() {
       Ellipse_5: "Ellipse_5.png",
     };
 
-    const leaderboard = users.map((user, index) => ({
+    const leaderboard = users.map((user: any, index: number) => ({
       rank: index + 1,
       id: user.id,
       username: user.username,
